@@ -71,13 +71,21 @@ class Cohort < ActiveRecord::Base
       current_time = start_date.in_time_zone.change(hour: start_time)
       days_in_cohort = (end_date - start_date).to_i
 
+      day_count = 1
+
+      # if the event exists and all attendance status are unmarked then nuke it to refill students
+      self.events.select{|e|
+        e.occurs_at.to_date > Date.today &&
+        e.attendances.where(status: :unmarked).count > 0
+      }.each{|e| e.destroy}
+
       days_in_cohort.times do |i|
         current_time += 1.day
         # if current day is a weekday .wday will return a number between 1-5
         if current_time.wday < 6 && current_time.wday > 0
           # sees if there's an event that has the same day and month as the current day
           if !self.events.any?{|event| event.occurs_at.to_date == current_time.to_date}
-            self.events.create(occurs_at: current_time, title: current_time.strftime("%B %d, %Y"))
+            self.events.create!(occurs_at: current_time, title: current_time.strftime("%B %d, %Y"))
           end
         end
       end
